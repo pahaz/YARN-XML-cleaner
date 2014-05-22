@@ -1,8 +1,14 @@
 yarn.xml cleaner
 ----------------
 
-Tested on python 2.7
-Require pip.
+Tested on python 2.7.
+
+Require python 2.x.
+Require pip. (for python 2.x)
+
+Require xml line format:
+ - One <example ..> </example> or <definition ..> </definition> in line.
+ - Use only single-line `example` and `definition` tags.
 
 INSTALL
 =======
