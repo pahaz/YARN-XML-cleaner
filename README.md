@@ -7,8 +7,13 @@ Require python 2.x.
 Require pip. (for python 2.x)
 
 Require xml line format:
- - One <example ..> </example> or <definition ..> </definition> in line.
- - Use only single-line `example` and `definition` tags.
+ - Line contain only one `<example ..> </example>` or `<definition ..> </definition>` tag.
+ - Use only single-line `example` and `definition` tag.
+
+Cleaning:
+ - `<example ..> </example>` example inner content.
+ - `<definition ..> </definition>` definition inner content.
+ - `<example source=" " ..> </example>` example source attribute content.
 
 INSTALL
 =======
