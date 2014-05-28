@@ -134,7 +134,7 @@ def figure_brackets_processor(text, pomets_out_list=None):
                 rez, use_end = FIGURE_BRACKETS_EXCEPTIONS[inner]
                 return rez + end if use_end else rez
             if inner in FIGURE_BRACKETS_COMMENTS:
-                pomets_out_list and pomets_out_list.append(inner)
+                pomets_out_list is not None and pomets_out_list.append(inner)
             return ""
 
         args = inner.split('|')
@@ -146,7 +146,7 @@ def figure_brackets_processor(text, pomets_out_list=None):
             return rez + end if use_end else rez
         if f == u"помета":
             if l in FIGURE_BRACKETS_COMMENTS:
-                pomets_out_list and pomets_out_list.append(l)
+                pomets_out_list is not None and pomets_out_list.append(l)
             return ""
 
         return args[-1] + end
@@ -230,7 +230,7 @@ def cleaning_csv_line(line):
     rez = [id]
     for x in row[1:]:
         rez.append(_cleaning(x.decode('utf-8'), pomets).encode('utf-8'))
-    rez.append(','.join(pomets))
+    rez.append(u','.join(pomets).encode('utf-8'))
     return to_csv_string(rez)
 
 
