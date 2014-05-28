@@ -29,6 +29,25 @@ __author__ = 'pahaz'
 RE_XML_DEF = re.compile(r'<definition([^>]*)>([^<]*)<', re.UNICODE)
 RE_XML_EX = re.compile(r'<example([^>]*)>([^<]*)<', re.UNICODE)
 
+PRE_FIXES = [
+    (u'студ\\.жарг.', u'студ. жарг.'),
+    (u'комп\\.жарг.', u'комп. жарг.'),
+    (u'полит\\.жарг.', u'полит. жарг.'),
+    (u'техн\\.жарг.', u'техн. жарг.'),
+    (u'церк\\.-сл\\.', u'церк.-слав.'),
+
+    (u'{{с\\.х\\.}}', u'{{сх}}'),
+    (u'{{с\\.-х\\.}}', u'{{сх}}'),
+    (u'{{бот\\.}}', u'{{ботан.}}'),
+    (u'{{архит\\.}}', u'{{архитект.}}'),
+    (u'{{унич\\.}}', u'{{уничиж.}}'),
+    (u'{{военн\\.}}', u'{{воен.}}'),
+    (u'{{умласк}}', u'{{умласк.}}'),
+    (u'{{фото}}', u'{{фотогр.}}'),
+    (u'{{Трад\\.}}', u'{{трад.}}'),
+    (u'{{Хим\\.}}', u'{{хим.}}'),
+]
+
 # [^а-яА-Яa-zA-Z0-9-ёЁ«»;//?—― ,.\n()!:]
 FIXES = [
     (u'кого-\\W', u'кого-л.'),
@@ -38,33 +57,58 @@ FIXES = [
     (u'ком-\\W', u'ком-л.'),
 
     (u'кого-л.', u'кого-либо'),
+    (u'([Кк])то-л.', u'\\1то-либо'),
+    (u'какой-л.', u'какой-либо'),
     (u'кем-л.', u'кем-либо'),
     (u'чему-л.', u'чему-либо'),
     (u'чего-л.', u'чего-либо'),
     (u'ком-л.', u'ком-либо'),
+    (u'какую-л.', u'какую-либо'),
 
-    (u'\\[\\d*\\]', u''),  # [123213] -> ''
-    (u'\\(\\d*\\)', u''),  # (123213) -> ''
+    (u'\\[[\\d\\s,.]*\\]', u''),  # [123213] -> ''
+    (u'\\([\\d\\s,.]*\\)', u''),  # (123213) -> ''
     (u'#+', u''),  # ### ->
     (u'\\[\\[\\s*(.*?)\\s*\\]\\]', u'\\1'),  # [[ wfaf ]] -> wfaf
-    (u"'''(.*?)'''\s*([.,:]?)", u"\\1\\2"),  # '''...''' -> ...
-    (u"''(.*?)''\s*([.,:]?)", u""),  # ''..'' ->
-    (u'[}{]+\s*', u''),
+    (u"'''(.*?)'''\\s*([.,:]?)", u"\\1\\2"),  # '''...''' -> ...
+    (u"''(.*?)''\\s*([.,:]?)", u""),  # ''..'' ->
+    (u'[}{]+\\s*', u''),
+    (u'([\\])}])(\\w)', u'\\1 \\2'),
 
     # pretty clean
-    (u'[(](\s*)[)]', u""),  # (  ) ->
+    (u'[(](\\s*)[)]', u""),  # (  ) ->
     (u'[ ]+', u' '),  # remove multi spaces
-    (u'[ ]+([,.:;)])', u'\\1'),  # remove spaces
-    (u'^[,.:;)}-· ]+', u''),  # remove begin
-    (u'[,.:;({-· ]+$', u''),  # remove end
+    (u'\\s+([,.:;)])', u'\\1'),  # remove spaces
+    (u'^[,.:;)}· -]+', u''),  # remove begin
+    (u'[,.:;({· -]+$', u''),  # remove end
 ]
 
 FIGURE_BRACKETS_EXCEPTIONS = {
     u'итп': (u' и т. п.', True),  # '{{итп}}'
     u'-': (u' - ', False),  # '{{-}}'
     u'музы': (u'музы', True),  # '{{музы}}'
-    u'много': (u'много', True),  # '{{музы}}'
+    u'много': (u'много', True),
+    u'ноты': (u'ноты', True),
+    u'сленг': (u'(сленг)', False),
+
+    # WTF ??
+    u'заменимая аминокислота': (u'заменимая аминокислота', True),
+    u'Даль': (u'Даль', True),
+    u'Ушаков': (u'(Ушаков)', True),
+    u'Бригадир отдал приказ своему многочисленному войску': (u'Бригадир отдал приказ своему многочисленному войску', True),
+    u'Солнечная система': (u'Солнечная система', True),
+    u'Сегодня мы ели фейхоа': (u'Сегодня мы ели фейхоа', True),
+    u'Аркадий и Борис Стругацкие/Град обречённый/"Страшное жёлтое марево сгущается в воздухе, и на людей нападаетбезумие, и они уничтожают друг друга в пароксизме ненависти"': (u'Аркадий и Борис Стругацкие /Град обречённый/ "Страшное жёлтое марево сгущается в воздухе, и на людей нападаетбезумие, и они уничтожают друг друга в пароксизме ненависти"', True),
+    u'Он сидел на корточках в сенях и рубил сечкой в корыте крапиву на корм свиньям. Рыленков, Мне четырнадцать лет.': (u'Он сидел на корточках в сенях и рубил сечкой в корыте крапиву на корм свиньям. Рыленков, Мне четырнадцать лет.', True),
 }
+
+# from pomets.txt file
+FIGURE_BRACKETS_COMMENTS = set()
+try:
+    with open('pomets.txt') as f:
+        FIGURE_BRACKETS_COMMENTS = set([x.decode('utf-8').strip('\n') for x in f.readlines()])
+except:
+    print("WARNING: open pomets.txt file error!")
+
 
 FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS = {
     u'': (u'', True),
@@ -80,7 +124,7 @@ def add_local_file(sc, filename):
 
 def figure_brackets_processor(text):
     def processor(match):
-        inner = match[2:].strip('.,')[:-2]
+        inner = match[2:].strip('.,')[:-2].strip(' ')
         end = inner[-1] if match[-1] in '.,' else ''
         if '{{' in inner:
             inner = figure_brackets_processor(inner)
@@ -89,15 +133,20 @@ def figure_brackets_processor(text):
             if inner in FIGURE_BRACKETS_EXCEPTIONS:
                 rez, use_end = FIGURE_BRACKETS_EXCEPTIONS[inner]
                 return rez + end if use_end else rez
+            if inner in FIGURE_BRACKETS_COMMENTS:
+                return u"({0}){1}".format(inner, end)
             return ''
 
         args = inner.split('|')
+        l = args[-1].strip(' ')
+        f = args[0].strip(' ')
 
-        if args[-1] == '':
-            return ''
-        if args[0] == u'помета':
-            return ''
-        if args[-1] == 'ru':
+        if l in FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS:
+            rez, use_end = FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS[l]
+            return rez + end if use_end else rez
+        if f == u'помета':
+            if l in FIGURE_BRACKETS_COMMENTS:
+                return u"({0}){1}".format(inner, end)
             return ''
 
         return args[-1] + end
@@ -136,6 +185,9 @@ def _cleaning(text):
     """
     if not text or text.isdigit():
         return text
+
+    for r, v in PRE_FIXES:
+        text = re.sub(r, v, text, flags=re.UNICODE)
 
     text = unescape_html(text)
     text = html_tags_processor(text)
@@ -202,13 +254,11 @@ def get_line_processor(file_path):
         ', '.join(FORMAT_PROCESSORS.keys())))
 
 
-def main(sc, file_path):
+def main(sc, file_path, out_path):
     line_processor = get_line_processor(file_path)
     lines = sc.textFile(file_path, 1)
     output = lines.map(line_processor)
-    output = output.collect()
-    for x in output:
-        print(x)
+    output.saveAsTextFile(out_path)
 
 
 def local_main(file_path):
@@ -313,13 +363,13 @@ if __name__ == "__main__":
         sys.exit()
 
     if len(sys.argv) < 3:
-        sys.exit("Use: cleaner.py <master> <file>")
+        sys.exit("Use: cleaner.py <master> <in_file> <out_file>")
 
     from pyspark import SparkContext
     from pyspark import SparkFiles
 
     sc = SparkContext(sys.argv[1], "PythonYarnCleaner")
-    main(sc, sys.argv[2])
+    main(sc, sys.argv[2], sys.argv[3])
 
 
     # z = (set([u'\u043f\u043e\u044d\u0442.', u'\u0438\u0442\u043f', u'\u0444\u0438\u0437.', u'\u043f\u043e\u043b\u0438\u0433\u0440.', u'\u0440\u0435\u043b\u0438\u0433.', u'\u0443\u0441\u0442\u0430\u0440.', u'\u0444\u0438\u043b\u043e\u0441.', u'\u0437\u043e\u043e\u043b.', u'\u043d\u0435\u0438\u0441\u0447.', u'\u0433\u0440\u0430\u043c.', u'\u043a\u043d\u0438\u0436\u043d.', u'\u0433\u0435\u043e\u0433\u0440.', u'\u0442\u0435\u0445\u043d.', u'\u043f\u0440\u0435\u0437\u0440.', u'\u043d\u0435\u043e\u043b.', u'\u043f\u0440\u0435\u043d\u0435\u0431\u0440.', u'\u0438\u0441\u0442\u043e\u0440.', u'\u0436\u0430\u0440\u0433.', u'\u043a\u043e\u043c\u043f.\u0436\u0430\u0440\u0433.', u'\u043c\u0443\u0437.', u'\u0440\u0435\u0434\u043a.', u'\u0438\u0441\u0447.', u'\u0431\u0440\u0430\u043d\u043d.', u'\u0441\u043f\u043e\u0440\u0442.', u'\u043d\u0435\u043e\u0434\u043e\u0431\u0440.', u'\u043a\u0443\u043b\u0438\u043d.', u'\u043e\u0431\u043b.', u'\u0443\u043c\u043b\u0430\u0441\u043a.', u'\u0441\u0435\u043b\u044c\u0441\u043a.', u'\u0440\u0438\u0442\u043e\u0440.', u'\u043c\u043e\u0440\u0441\u043a.', u'\u044d\u0442\u043d\u043e\u0433\u0440.', u'\u043e\u0444\u0438\u0446.', u'\u0435\u0434.', u'\u0448\u0443\u0442\u043b.', u'\u0440\u0435\u0433.', u'\u0448\u043a\u043e\u043b\u044c\u043d.', u'\u0432\u0443\u043b\u044c\u0433.', u'\u043f\u0435\u0440\u0435\u043d.', u'\u0444\u0438\u043d.', u'\u044d\u043a\u043e\u043d.', u'\u043a\u043e\u043c\u043f.', u'\u0443\u043d\u0438\u0447\u0438\u0436.', u'\u0442\u043e\u0440\u0436.', u'\u0432\u044b\u0441\u043e\u043a.', u'\u0443\u043c\u043b\u0430\u0441\u043a', u'\u0446\u0435\u0440\u043a.', u'\u0433\u0435\u043e\u043c\u0435\u0442\u0440.', u'\u0442\u0435\u043a\u0441\u0442.', u'\u043d\u0430\u0440.-\u043f\u043e\u044d\u0442.', u'\u0448\u0430\u0445\u043c.', u'\u043c\u0438\u0444\u043e\u043b.', u'\u043f\u0440\u043e\u0441\u0442.', u'\u043c\u0430\u0442', u'\u043c\u0435\u0434.', u'\u043f.', u'\u0441\u043e\u0431\u0438\u0440.', u'\u044e\u0440.', u'\u0430\u0432\u0442\u043e\u043c\u043e\u0431.', u'\u0441\u0442\u0440\u043e\u0438\u0442.', u'\u0431\u0438\u043e\u043b.', u'\u043a\u0430\u0440\u0442.', u'\u0431\u0440\u0430\u043d.', u'\u044d\u0432\u0444.', u'\u0430\u043d\u0430\u0442.', u'\u043b\u0438\u0442.', u'\u043c\u0430\u0442\u0435\u043c.', u'\u0441\u043f\u0435\u0446.', u'\u0432\u043e\u0435\u043d.', u'\u0444\u0438\u043b\u043e\u043b.', u'\u0431\u043e\u0442\u0430\u043d.', u'\u0443\u043d\u0438\u0447.', u'\u0441\u0442\u0430\u0440\u0438\u043d.', u'\u043f\u0441\u0438\u0445\u043e\u043b.', u'\u043f\u043e\u043b\u0438\u0442.', u'\u0432\u043e\u0435\u043d\u043d.', u'\u0444\u0430\u043c.', u'\u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442.', u'\u043c\u043d.', u'\u0442\u0435\u0430\u0442\u0440.', u'\u0440\u0430\u0437\u0433.', u'\u043b\u0438\u043d\u0433\u0432.', u'\u0443\u043c\u0435\u043d\u044c\u0448.', u'\u043a\u0440\u0438\u043c.']))
