@@ -122,20 +122,20 @@ def add_local_file(sc, filename):
     sc.addFile(yarn_xml_file)
 
 
-def figure_brackets_processor(text):
+def figure_brackets_processor(text, pomets_out_list=None):
     def processor(match):
         inner = match[2:].strip('.,')[:-2].strip(' ')
         end = inner[-1] if match[-1] in '.,' else ''
-        if '{{' in inner:
-            inner = figure_brackets_processor(inner)
+        if "{{" in inner:
+            inner = figure_brackets_processor(inner, pomets_out_list)
 
-        if '|' not in inner:
+        if "|" not in inner:
             if inner in FIGURE_BRACKETS_EXCEPTIONS:
                 rez, use_end = FIGURE_BRACKETS_EXCEPTIONS[inner]
                 return rez + end if use_end else rez
             if inner in FIGURE_BRACKETS_COMMENTS:
-                return u"({0}){1}".format(inner, end)
-            return ''
+                pomets_out_list and pomets_out_list.append(inner)
+            return ""
 
         args = inner.split('|')
         l = args[-1].strip(' ')
@@ -144,10 +144,10 @@ def figure_brackets_processor(text):
         if l in FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS:
             rez, use_end = FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS[l]
             return rez + end if use_end else rez
-        if f == u'помета':
+        if f == u"помета":
             if l in FIGURE_BRACKETS_COMMENTS:
-                return u"({0}){1}".format(inner, end)
-            return ''
+                pomets_out_list and pomets_out_list.append(l)
+            return ""
 
         return args[-1] + end
 
@@ -174,12 +174,10 @@ def html_tags_processor(text):
 
 def unescape_html(text):
     return unescape_html._parser.unescape(text)
-
-
 unescape_html._parser = HTMLParser.HTMLParser()
 
 
-def _cleaning(text):
+def _cleaning(text, pomets=None):
     """
     unicode -> unicode
     """
@@ -191,7 +189,7 @@ def _cleaning(text):
 
     text = unescape_html(text)
     text = html_tags_processor(text)
-    text = figure_brackets_processor(text)
+    text = figure_brackets_processor(text, pomets)
 
     for r, v in FIXES:
         text = re.sub(r, v, text, flags=re.UNICODE)
@@ -225,6 +223,17 @@ def cleaning_xml_line(line):
     return str(soap)
 
 
+def cleaning_csv_line(line):
+    row = from_csv_string(line)
+    id = row[0]
+    pomets = []
+    rez = [id]
+    for x in row[1:]:
+        rez.append(_cleaning(x.decode('utf-8'), pomets).encode('utf-8'))
+    rez.append(','.join(pomets))
+    return to_csv_string(rez)
+
+
 def to_csv_string(data):
     si = StringIO()
     cw = csv.writer(si, quoting=csv.QUOTE_MINIMAL)
@@ -239,7 +248,7 @@ def from_csv_string(string):
 
 
 f_xml = lambda x: cleaning_xml_line(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
-f_csv = lambda x: to_csv_string([_cleaning(x.decode('utf-8')).encode('utf-8') for x in from_csv_string(x)])
+f_csv = lambda x: cleaning_csv_line(x)
 FORMAT_PROCESSORS = {
     '.xml': f_xml,
     '.csv': f_csv,
