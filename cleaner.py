@@ -24,6 +24,7 @@ import sys
 
 __author__ = 'pahaz'
 
+IS_LIGHT = False
 
 # use only for filtering
 RE_XML_DEF = re.compile(r'<definition([^>]*)>([^<]*)<', re.UNICODE)
@@ -197,7 +198,7 @@ def _cleaning(text, pomets=None):
     text = text.strip(' .')
 
     # if contain cyrillic symbol -> sentence
-    if len(text) > 1 and re.search(u'[а-яА-ЯёЁ]', text):
+    if not IS_LIGHT and len(text) > 1 and re.search(u'[а-яА-ЯёЁ]', text):
         rez = text[0].upper() + text[1:] + '.'
     else:
         rez = text
@@ -230,7 +231,8 @@ def cleaning_csv_line(line):
     rez = [id]
     for x in row[1:]:
         rez.append(_cleaning(x.decode('utf-8'), pomets).encode('utf-8'))
-    rez.append(u','.join(pomets).encode('utf-8'))
+    if not IS_LIGHT:
+        rez.append(u','.join(pomets).encode('utf-8'))
     return to_csv_string(rez)
 
 
@@ -357,10 +359,11 @@ if __name__ == "__main__":
         doctest.testmod()
         sys.exit()
 
-    if len(sys.argv) == 3 and sys.argv[1] == "--local":
+    if len(sys.argv) == 3 and (sys.argv[1] == "--local" or sys.argv[1] == "--local_light"):
         docs_local = """
-        Use: cleaner.py --local *.csv
+        Use: cleaner.py --local[_light] *.csv
         """
+        IS_LIGHT = sys.argv[1] == "--local_light"
         file_pattern = sys.argv[2]
         for file_ in glob.glob(file_pattern):
             print("Cleaning: {0}".format(file_))
@@ -372,13 +375,23 @@ if __name__ == "__main__":
         sys.exit()
 
     if len(sys.argv) < 3:
-        sys.exit("Use: cleaner.py <master> <in_file> <out_file>")
+        sys.exit("Use: cleaner.py [--light] <master> <in_file> <out_file>")
 
     from pyspark import SparkContext
     from pyspark import SparkFiles
 
-    sc = SparkContext(sys.argv[1], "PythonYarnCleaner")
-    main(sc, sys.argv[2], sys.argv[3])
+    if sys.argv[1] == '--light':
+        IS_LIGHT = True
+        master = sys.argv[2]
+        in_file = sys.argv[3]
+        out_file = sys.argv[4]
+    else:
+        master = sys.argv[1]
+        in_file = sys.argv[2]
+        out_file = sys.argv[3]
+
+    sc = SparkContext(master, "PythonYarnCleaner")
+    main(sc, in_file, out_file)
 
 
     # z = (set([u'\u043f\u043e\u044d\u0442.', u'\u0438\u0442\u043f', u'\u0444\u0438\u0437.', u'\u043f\u043e\u043b\u0438\u0433\u0440.', u'\u0440\u0435\u043b\u0438\u0433.', u'\u0443\u0441\u0442\u0430\u0440.', u'\u0444\u0438\u043b\u043e\u0441.', u'\u0437\u043e\u043e\u043b.', u'\u043d\u0435\u0438\u0441\u0447.', u'\u0433\u0440\u0430\u043c.', u'\u043a\u043d\u0438\u0436\u043d.', u'\u0433\u0435\u043e\u0433\u0440.', u'\u0442\u0435\u0445\u043d.', u'\u043f\u0440\u0435\u0437\u0440.', u'\u043d\u0435\u043e\u043b.', u'\u043f\u0440\u0435\u043d\u0435\u0431\u0440.', u'\u0438\u0441\u0442\u043e\u0440.', u'\u0436\u0430\u0440\u0433.', u'\u043a\u043e\u043c\u043f.\u0436\u0430\u0440\u0433.', u'\u043c\u0443\u0437.', u'\u0440\u0435\u0434\u043a.', u'\u0438\u0441\u0447.', u'\u0431\u0440\u0430\u043d\u043d.', u'\u0441\u043f\u043e\u0440\u0442.', u'\u043d\u0435\u043e\u0434\u043e\u0431\u0440.', u'\u043a\u0443\u043b\u0438\u043d.', u'\u043e\u0431\u043b.', u'\u0443\u043c\u043b\u0430\u0441\u043a.', u'\u0441\u0435\u043b\u044c\u0441\u043a.', u'\u0440\u0438\u0442\u043e\u0440.', u'\u043c\u043e\u0440\u0441\u043a.', u'\u044d\u0442\u043d\u043e\u0433\u0440.', u'\u043e\u0444\u0438\u0446.', u'\u0435\u0434.', u'\u0448\u0443\u0442\u043b.', u'\u0440\u0435\u0433.', u'\u0448\u043a\u043e\u043b\u044c\u043d.', u'\u0432\u0443\u043b\u044c\u0433.', u'\u043f\u0435\u0440\u0435\u043d.', u'\u0444\u0438\u043d.', u'\u044d\u043a\u043e\u043d.', u'\u043a\u043e\u043c\u043f.', u'\u0443\u043d\u0438\u0447\u0438\u0436.', u'\u0442\u043e\u0440\u0436.', u'\u0432\u044b\u0441\u043e\u043a.', u'\u0443\u043c\u043b\u0430\u0441\u043a', u'\u0446\u0435\u0440\u043a.', u'\u0433\u0435\u043e\u043c\u0435\u0442\u0440.', u'\u0442\u0435\u043a\u0441\u0442.', u'\u043d\u0430\u0440.-\u043f\u043e\u044d\u0442.', u'\u0448\u0430\u0445\u043c.', u'\u043c\u0438\u0444\u043e\u043b.', u'\u043f\u0440\u043e\u0441\u0442.', u'\u043c\u0430\u0442', u'\u043c\u0435\u0434.', u'\u043f.', u'\u0441\u043e\u0431\u0438\u0440.', u'\u044e\u0440.', u'\u0430\u0432\u0442\u043e\u043c\u043e\u0431.', u'\u0441\u0442\u0440\u043e\u0438\u0442.', u'\u0431\u0438\u043e\u043b.', u'\u043a\u0430\u0440\u0442.', u'\u0431\u0440\u0430\u043d.', u'\u044d\u0432\u0444.', u'\u0430\u043d\u0430\u0442.', u'\u043b\u0438\u0442.', u'\u043c\u0430\u0442\u0435\u043c.', u'\u0441\u043f\u0435\u0446.', u'\u0432\u043e\u0435\u043d.', u'\u0444\u0438\u043b\u043e\u043b.', u'\u0431\u043e\u0442\u0430\u043d.', u'\u0443\u043d\u0438\u0447.', u'\u0441\u0442\u0430\u0440\u0438\u043d.', u'\u043f\u0441\u0438\u0445\u043e\u043b.', u'\u043f\u043e\u043b\u0438\u0442.', u'\u0432\u043e\u0435\u043d\u043d.', u'\u0444\u0430\u043c.', u'\u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442.', u'\u043c\u043d.', u'\u0442\u0435\u0430\u0442\u0440.', u'\u0440\u0430\u0437\u0433.', u'\u043b\u0438\u043d\u0433\u0432.', u'\u0443\u043c\u0435\u043d\u044c\u0448.', u'\u043a\u0440\u0438\u043c.']))
