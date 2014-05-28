@@ -19,8 +19,8 @@ if __name__ == "__main__":
         with open(file_, 'rb') as csvfile:
             with open(out_file_, 'wb') as out_csvfile:
 
-                writer = csv.writer(out_csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                reader = csv.reader(csvfile, delimiter=',', strict=True, quoting=csv.QUOTE_MINIMAL)
+                writer = csv.writer(out_csvfile, strict=True, quoting=csv.QUOTE_MINIMAL)
+                reader = csv.reader(csvfile, strict=True)
 
                 try:
                     for row in reader:

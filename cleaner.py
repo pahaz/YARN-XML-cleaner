@@ -6,6 +6,13 @@ Use:
     bin\pyspark cleaner.py local hdfs://yarn.xml
 
 """
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
+
+import csv
+import glob
 
 from itertools import imap, ifilter
 import os
@@ -29,24 +36,39 @@ FIXES = [
     (u'чему-\\W', u'чему-л.'),
     (u'чего-\\W', u'чего-л.'),
     (u'ком-\\W', u'ком-л.'),
-    
+
     (u'кого-л.', u'кого-либо'),
     (u'кем-л.', u'кем-либо'),
     (u'чему-л.', u'чему-либо'),
     (u'чего-л.', u'чего-либо'),
     (u'ком-л.', u'ком-либо'),
-    
+
     (u'\\[\\d*\\]', u''),  # [123213] -> ''
     (u'\\(\\d*\\)', u''),  # (123213) -> ''
-    (u'#+', u''),  # '###' -> ''
+    (u'#+', u''),  # ### ->
     (u'\\[\\[\\s*(.*?)\\s*\\]\\]', u'\\1'),  # [[ wfaf ]] -> wfaf
-    (u"'''(.*?)'''([.,]?)", u"\\1\\2"),
-    (u"''(.*?)''([.,]?)", u""),
+    (u"'''(.*?)'''\s*([.,:]?)", u"\\1\\2"),  # '''...''' -> ...
+    (u"''(.*?)''\s*([.,:]?)", u""),  # ''..'' ->
+    (u'[}{]+\s*', u''),
+
+    # pretty clean
+    (u'[(](\s*)[)]', u""),  # (  ) ->
+    (u'[ ]+', u' '),  # remove multi spaces
+    (u'[ ]+([,.:;)])', u'\\1'),  # remove spaces
+    (u'^[,.:;)}-· ]+', u''),  # remove begin
+    (u'[,.:;({-· ]+$', u''),  # remove end
 ]
 
 FIGURE_BRACKETS_EXCEPTIONS = {
-    'итп': ' и т. п.',  # '{{итп}}'
-    '-': ' - ',  # '{{-}}'
+    u'итп': (u' и т. п.', True),  # '{{итп}}'
+    u'-': (u' - ', False),  # '{{-}}'
+    u'музы': (u'музы', True),  # '{{музы}}'
+    u'много': (u'много', True),  # '{{музы}}'
+}
+
+FIGURE_BRACKETS_LAST_PIPE_EXCEPTIONS = {
+    u'': (u'', True),
+    u'ru': (u'', True),
 }
 
 
@@ -65,7 +87,8 @@ def figure_brackets_processor(text):
 
         if '|' not in inner:
             if inner in FIGURE_BRACKETS_EXCEPTIONS:
-                return FIGURE_BRACKETS_EXCEPTIONS[inner]
+                rez, use_end = FIGURE_BRACKETS_EXCEPTIONS[inner]
+                return rez + end if use_end else rez
             return ''
 
         args = inner.split('|')
@@ -73,6 +96,8 @@ def figure_brackets_processor(text):
         if args[-1] == '':
             return ''
         if args[0] == u'помета':
+            return ''
+        if args[-1] == 'ru':
             return ''
 
         return args[-1] + end
@@ -98,16 +123,6 @@ def html_tags_processor(text):
     return text
 
 
-def pretty_cleaner(text):
-    text = pretty_cleaner.empty_brackets.sub('', text)
-    text = pretty_cleaner.multy_spaces.sub(' ', text)
-    return text
-
-
-pretty_cleaner.empty_brackets = re.compile(r'[(](\s*)[)]')
-pretty_cleaner.multy_spaces = re.compile(r'[ ]+')
-
-
 def unescape_html(text):
     return unescape_html._parser.unescape(text)
 
@@ -116,19 +131,33 @@ unescape_html._parser = HTMLParser.HTMLParser()
 
 
 def _cleaning(text):
+    """
+    unicode -> unicode
+    """
+    if not text or text.isdigit():
+        return text
+
     text = unescape_html(text)
     text = html_tags_processor(text)
     text = figure_brackets_processor(text)
-    cleaned_content = pretty_cleaner(text).strip(' .')
+
     for r, v in FIXES:
-        cleaned_content = re.sub(r, v, cleaned_content, flags=re.UNICODE)
-    rez = cleaned_content[0].upper() + cleaned_content[1:] + '.'
+        text = re.sub(r, v, text, flags=re.UNICODE)
+
+    text = text.strip(' .')
+
+    # if contain cyrillic symbol -> sentence
+    if len(text) > 1 and re.search(u'[а-яА-ЯёЁ]', text):
+        rez = text[0].upper() + text[1:] + '.'
+    else:
+        rez = text
+
     return rez
 
 
-def cleaning(line):
+def cleaning_xml_line(line):
     """
-    return cleaned and encoded utf-8 line
+    str (utf-8) -> cleaned str (utf-8)
     """
     # if type(line) != unicode:
     #     line = line.decode('utf-8')
@@ -144,30 +173,51 @@ def cleaning(line):
     return str(soap)
 
 
-def get_format(file_path):
-    path_tail = file_path.rsplit('.', 2)[-1]
-    if path_tail not in ['xml', 'csv']:
-        return None
-    return path_tail
+def to_csv_string(data):
+    si = StringIO()
+    cw = csv.writer(si, quoting=csv.QUOTE_MINIMAL)
+    cw.writerow(data)
+    return si.getvalue().strip('\r\n')
+
+
+def from_csv_string(string):
+    string = string.strip('\r\n')
+    rez = next(iter(csv.reader([string])))
+    return rez
+
+
+f_xml = lambda x: cleaning_xml_line(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
+f_csv = lambda x: to_csv_string([_cleaning(x.decode('utf-8')).encode('utf-8') for x in from_csv_string(x)])
+FORMAT_PROCESSORS = {
+    '.xml': f_xml,
+    '.csv': f_csv,
+}
+
+
+def get_line_processor(file_path):
+    for ext, f in FORMAT_PROCESSORS.items():
+        if file_path.endswith(ext):
+            return f
+    raise Exception('Unknown file extension. Support: {0}'.format(
+        ', '.join(FORMAT_PROCESSORS.keys())))
 
 
 def main(sc, file_path):
-    f = lambda x: cleaning(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
-    format = get_format(file_path)
+    line_processor = get_line_processor(file_path)
     lines = sc.textFile(file_path, 1)
-    output = lines.map(f)
+    output = lines.map(line_processor)
     output = output.collect()
     for x in output:
         print(x)
 
 
-def local_main(filename):
-    f = lambda x: cleaning(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
-    with open(filename, 'r') as file_:
+def local_main(file_path):
+    line_processor = get_line_processor(file_path)
+    with open(file_path, 'r') as file_:
         i = iter(file_)
-        i = imap(f, i)
+        i = imap(line_processor, i)
         for x in i:
-            yield x
+            yield x + '\n'
 
 
 # A matching function for nested expressions, e.g. namespaces and tables.
@@ -234,21 +284,36 @@ def find_nested(text, open_re, close_re, flags=0):
     return matches
 
 
+def get_out_file_name(file_path):
+    file_path_name = file_path.replace('\\', '/').rsplit('/', 1)[-1]
+    base_name, ext = file_path_name.rsplit('.', 1)
+    out_file_name = base_name + ".cleaned." + ext
+    return file_path.replace(file_path_name, out_file_name)
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 2 and '--test' in sys.argv:
         import doctest
+
         doctest.testmod()
         sys.exit()
 
-    if len(sys.argv) >= 2 and '--local' in sys.argv:
-        with open('yarn.cleaned.xml', 'w') as f:
-            for x in local_main('yarn.xml'):
-                f.write(x)
+    if len(sys.argv) == 3 and sys.argv[1] == "--local":
+        docs_local = """
+        Use: cleaner.py --local *.csv
+        """
+        file_pattern = sys.argv[2]
+        for file_ in glob.glob(file_pattern):
+            print("Cleaning: {0}".format(file_))
+            out_file_ = get_out_file_name(file_)
+            print("Out: {0}".format(out_file_))
+            with open(out_file_, "w") as f:
+                for x in local_main(file_):
+                    f.write(x)
         sys.exit()
 
     if len(sys.argv) < 3:
-        print >> sys.stderr, "Usage: cleaner.py <master> <file>"
-        exit(-1)
+        sys.exit("Use: cleaner.py <master> <file>")
 
     from pyspark import SparkContext
     from pyspark import SparkFiles
