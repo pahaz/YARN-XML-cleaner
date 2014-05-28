@@ -26,7 +26,8 @@ USE
 
 ## How to use as local script:
 
-    $ python cleaner.py --local  # require yarn.xml file, and write result to yarn.cleaned.xml
+    $ python cleaner.py --local *.xml
+    $ python cleaner.py --local *.csv
 
 ## How to use with spark:
 
@@ -48,3 +49,8 @@ or
 
     ungz.py *.gz
 
+## some example ##
+
+    downloader.py -f urls.txt
+    ungz.py *.gz
+    cleaner.py --local *.csv
