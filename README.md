@@ -31,7 +31,7 @@ USE
 
 ## How to use with spark:
 
-    $ bin/pyspark cleaner.py local file:///C:\Users\...\yarn.xml
+    $ bin/pyspark cleaner.py [--light] local file:///C:\Users\...\yarn.xml
 
 or
 
