@@ -36,3 +36,15 @@ or
 
     $ bin/pyspark cleaner.py local hdfs:.../yarn.xml
 
+## use: csv_preprocessor.py ##
+
+    csv_preprocessor.py *.csv
+
+## use: downloader.py ##
+
+    downloader.py -f urls.txt
+
+## use: ungz.py ##
+
+    ungz.py *.gz
+

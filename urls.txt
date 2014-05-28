@@ -1,0 +1,3 @@
+http://koost.eveel.ru/current_words.csv.gz
+http://koost.eveel.ru/current_definitions.csv.gz
+http://koost.eveel.ru/current_examples.csv.gz

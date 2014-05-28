@@ -19,8 +19,8 @@ __author__ = 'pahaz'
 
 
 # use only for filtering
-RE_DEF = re.compile(r'<definition([^>]*)>([^<]*)<', re.UNICODE)
-RE_EX = re.compile(r'<example([^>]*)>([^<]*)<', re.UNICODE)
+RE_XML_DEF = re.compile(r'<definition([^>]*)>([^<]*)<', re.UNICODE)
+RE_XML_EX = re.compile(r'<example([^>]*)>([^<]*)<', re.UNICODE)
 
 # [^а-яА-Яa-zA-Z0-9-ёЁ«»;//?—― ,.\n()!:]
 FIXES = [
@@ -136,8 +136,16 @@ def cleaning(line):
     return str(soap)
 
 
+def get_format(file_path):
+    path_tail = file_path.rsplit('.', 2)[-1]
+    if path_tail not in ['xml', 'csv']:
+        return None
+    return path_tail
+
+
 def main(sc, file_path):
-    f = lambda x: cleaning(x) if RE_DEF.search(x) or RE_EX.search(x) else x
+    f = lambda x: cleaning(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
+    format = get_format(file_path)
     lines = sc.textFile(file_path, 1)
     output = lines.map(f)
     output = output.collect()
@@ -146,7 +154,7 @@ def main(sc, file_path):
 
 
 def local_main(filename):
-    f = lambda x: cleaning(x) if RE_DEF.search(x) or RE_EX.search(x) else x
+    f = lambda x: cleaning(x) if RE_XML_DEF.search(x) or RE_XML_EX.search(x) else x
     with open(filename, 'r') as file_:
         i = iter(file_)
         i = imap(f, i)
@@ -219,18 +227,16 @@ def find_nested(text, open_re, close_re, flags=0):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] == '--test':
+    if len(sys.argv) >= 2 and '--test' in sys.argv:
         import doctest
-
         doctest.testmod()
         sys.exit()
 
-    if len(sys.argv) == 2 and sys.argv[1] == '--local':
+    if len(sys.argv) >= 2 and '--local' in sys.argv:
         with open('yarn.cleaned.xml', 'w') as f:
             for x in local_main('yarn.xml'):
                 f.write(x)
         sys.exit()
-
 
     if len(sys.argv) < 3:
         print >> sys.stderr, "Usage: cleaner.py <master> <file>"
