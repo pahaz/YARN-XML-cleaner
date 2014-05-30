@@ -18,7 +18,7 @@ if __name__ == "__main__":
         out_file_ = file_.replace('.csv', '.pre_cleaned.csv')
         with open(file_, 'rb') as csvfile:
             with open(out_file_, 'wb') as out_csvfile:
-
+                csvfile.readline()  # mess headers 
                 writer = csv.writer(out_csvfile, strict=True, quoting=csv.QUOTE_MINIMAL)
                 reader = csv.reader(csvfile, strict=True)
 
