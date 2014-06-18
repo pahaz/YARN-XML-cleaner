@@ -9,13 +9,6 @@ require 'csv'
 require 'pry'
 
 Dir.chdir(File.expand_path('../', __FILE__)) do
-  Word.transaction do
-    CSV.foreach('current_words.cleaned.csv', headers: true) do |row|
-      next if row['word'].blank?
-      Word.where(id: row['id']).update_all(word: row['word'])
-    end
-  end
-
   Definition.transaction do
     CSV.foreach('current_definitions.cleaned.csv', headers: true) do |row|
       next if row['text'].blank?
